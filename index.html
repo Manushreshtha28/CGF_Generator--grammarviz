@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CFGviz — Grammar Derivation Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;0,700;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+/* ═══ BLUEPRINT BRUTALIST THEME ═══
+   Cream paper + India ink + graph grid
+   Fonts: DM Serif Display + IBM Plex Mono
+*/
+:root{
+  --paper:#f5f0e8;
+  --paper2:#ede8dc;
+  --paper3:#e0d9cc;
+  --ink:#1a1410;
+  --ink2:#3d3530;
+  --ink3:#7a6e65;
+  --ink4:#b0a89e;
+  --red:#c0392b;
+  --blue:#1a3a5c;
+  --green:#1a4a2e;
+  --amber:#8b5e00;
+  --rule:#c8bfb0;
+  --grid:rgba(100,90,80,.09);
+  --accent:#c0392b;
+  --ok:#1a4a2e;
+  --err:#c0392b;
+  --warn:#8b5e00;
+  --nt:#1a3a5c;
+  --term:#1a4a2e;
+  --font:'DM Serif Display',serif;
+  --mono:'IBM Plex Mono',monospace;
+  --sw:320px;
+  --hh:60px;
+  --tr:.15s ease;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;-webkit-font-smoothing:antialiased}
+
+body{
+  font-family:var(--mono);
+  background:var(--paper);
+  color:var(--ink);
+  min-height:100vh;
+  overflow-x:hidden;
+  /* Graph paper background */
+  background-image:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px),
+    linear-gradient(rgba(100,90,80,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(100,90,80,.04) 1px,transparent 1px);
+  background-size:40px 40px,40px 40px,8px 8px,8px 8px;
+}
+
+/* ── HEADER ── */
+header{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  height:var(--hh);
+  background:var(--ink);
+  display:flex;align-items:center;
+  padding:0 1.5rem;gap:2rem;
+  box-shadow:0 4px 0 0 var(--red);
+}
+.brand{
+  display:flex;align-items:center;gap:.75rem;
+  cursor:pointer;background:none;border:none;
+}
+.brand-stamp{
+  width:38px;height:38px;
+  border:2px solid var(--red);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font);font-size:1.1rem;font-style:italic;
+  color:var(--red);
+  transform:rotate(-3deg);
+  position:relative;
+}
+.brand-stamp::after{
+  content:'';position:absolute;inset:-4px;
+  border:1px solid rgba(192,57,43,.3);
+}
+.brand-title{
+  font-family:var(--font);font-size:1.25rem;font-style:italic;
+  color:#f5f0e8;letter-spacing:.01em;line-height:1.1;
+}
+.brand-title span{color:var(--red);}
+.brand-sub{font-size:.58rem;color:#9a8e85;letter-spacing:.15em;text-transform:uppercase;display:block;margin-top:1px;font-family:var(--mono)}
+
+nav{display:flex;gap:0;margin-left:auto}
+.nl{
+  padding:.45rem 1.1rem;font-size:.7rem;font-weight:600;letter-spacing:.1em;
+  color:#9a8e85;text-transform:uppercase;cursor:pointer;
+  transition:var(--tr);border:none;background:none;font-family:var(--mono);
+  border-left:1px solid rgba(255,255,255,.06);
+  position:relative;
+}
+.nl:hover{color:#f5f0e8}
+.nl.on{color:var(--red)}
+.nl.on::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--red)}
+
+.hbtn{
+  padding:.4rem .9rem;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  background:none;border:1px solid rgba(255,255,255,.15);color:#9a8e85;
+  border-radius:2px;cursor:pointer;transition:var(--tr);font-family:var(--mono);
+}
+.hbtn:hover{border-color:var(--red);color:var(--red)}
+
+/* ── SHELL ── */
+.shell{
+  display:grid;grid-template-columns:var(--sw) 1fr;
+  height:calc(100vh - var(--hh));margin-top:var(--hh);
+  position:relative;z-index:5;
+}
+
+/* ── SIDEBAR ── */
+aside{
+  background:var(--paper2);
+  border-right:2px solid var(--ink);
+  overflow-y:auto;padding:0;
+  display:flex;flex-direction:column;
+}
+aside::-webkit-scrollbar{width:4px}
+aside::-webkit-scrollbar-thumb{background:var(--rule)}
+
+.side-top{
+  background:var(--ink);color:var(--paper);
+  padding:.7rem 1rem;
+  font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;font-family:var(--mono);
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:3px solid var(--red);
+}
+.side-top-dot{width:8px;height:8px;border-radius:50%;background:var(--red)}
+
+.side-body{padding:.85rem;display:flex;flex-direction:column;gap:.85rem;flex:1}
+
+/* Section blocks */
+.blk{
+  border:1.5px solid var(--ink);
+  background:var(--paper);
+  position:relative;
+}
+.blk::before{
+  content:'';position:absolute;inset:3px;
+  border:1px solid var(--rule);pointer-events:none;
+}
+.blk-hd{
+  background:var(--ink);color:var(--paper);
+  padding:.35rem .7rem;
+  font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;font-family:var(--mono);font-weight:600;
+  display:flex;align-items:center;gap:.5rem;
+}
+.blk-hd-num{
+  width:16px;height:16px;border-radius:50%;
+  background:var(--red);color:#fff;
+  font-size:.55rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.blk-body{padding:.65rem .7rem;display:flex;flex-direction:column;gap:.55rem}
+
+.lbl{
+  font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink2);margin-bottom:.18rem;display:block;font-family:var(--mono);
+}
+.lbl-hint{font-size:.58rem;color:var(--ink4);font-weight:400;letter-spacing:0;text-transform:none}
+
+input[type=text],textarea{
+  width:100%;background:var(--paper);
+  border:1.5px solid var(--ink3);
+  color:var(--ink);border-radius:0;
+  font-family:var(--mono);font-size:.78rem;line-height:1.7;
+  padding:.42rem .6rem;outline:none;resize:none;
+  transition:border-color var(--tr),box-shadow var(--tr);
+}
+input[type=text]:focus,textarea:focus{
+  border-color:var(--ink);
+  box-shadow:3px 3px 0 var(--ink);
+}
+input[type=text].sm{max-width:100px}
+textarea{min-height:110px;resize:vertical}
+
+/* Token preview */
+.tok{display:flex;flex-wrap:wrap;gap:3px;min-height:22px;padding:2px 0}
+.tk{
+  padding:1px 7px;font-family:var(--mono);font-size:.72rem;
+  border:1px solid var(--ink3);color:var(--ink2);background:var(--paper3);
+}
+
+/* Seg */
+.seg{display:flex;border:1.5px solid var(--ink)}
+.sb{
+  flex:1;padding:.35rem;font-size:.66rem;font-weight:600;letter-spacing:.06em;
+  background:none;border:none;border-right:1px solid var(--ink3);
+  color:var(--ink3);cursor:pointer;transition:var(--tr);font-family:var(--mono);
+  text-transform:uppercase;
+}
+.sb:last-child{border-right:none}
+.sb:hover{background:var(--paper3);color:var(--ink)}
+.sb.on{background:var(--ink);color:var(--paper);font-weight:700}
+
+/* Speed */
+.spd{display:flex;gap:4px}
+.spdb{
+  flex:1;padding:.3rem;font-size:.64rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--paper);border:1.5px solid var(--ink3);color:var(--ink3);
+  cursor:pointer;transition:var(--tr);font-family:var(--mono);
+}
+.spdb:hover{border-color:var(--ink);color:var(--ink)}
+.spdb.on{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+
+/* Range */
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--ink3);border-radius:0;outline:none;cursor:pointer;border:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:18px;border-radius:0;background:var(--ink);cursor:pointer;border:none}
+.rv{color:var(--red);font-size:.72rem;font-weight:700;font-family:var(--mono);margin-left:4px}
+
+/* Presets */
+.prg{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.pc2{
+  padding:.45rem .5rem;background:var(--paper);border:1.5px solid var(--ink3);
+  cursor:pointer;transition:var(--tr);text-align:left;
+}
+.pc2:hover{border-color:var(--ink);background:var(--paper3);transform:translate(-1px,-1px);box-shadow:2px 2px 0 var(--ink)}
+.pn{font-size:.74rem;font-weight:700;color:var(--ink);font-family:var(--mono);display:block}
+.pd3{font-size:.58rem;color:var(--ink4);display:block;font-family:var(--mono)}
+
+/* Generate button */
+.gen{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:.6rem;
+  padding:.85rem 1.5rem;background:var(--red);
+  border:2px solid var(--ink);color:#fff;font-family:var(--mono);
+  font-size:.85rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  cursor:pointer;transition:transform var(--tr),box-shadow var(--tr);
+  box-shadow:4px 4px 0 var(--ink);margin-top:.2rem;
+}
+.gen:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}
+.gen:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+.gen:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:4px 4px 0 var(--ink)}
+
+.errmsg{
+  margin-top:.4rem;padding:.5rem .65rem;
+  border:1.5px solid var(--red);color:var(--red);
+  font-size:.72rem;line-height:1.5;display:none;background:rgba(192,57,43,.05);
+}
+
+/* ── MAIN AREA ── */
+main{display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
+
+/* Tab bar */
+.tbar{
+  display:flex;border-bottom:2px solid var(--ink);
+  background:var(--paper2);flex-shrink:0;
+}
+.tab{
+  display:flex;align-items:center;gap:.45rem;
+  padding:.65rem 1.1rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink3);background:none;border:none;cursor:pointer;
+  border-right:1px solid var(--rule);border-bottom:3px solid transparent;
+  transition:color var(--tr),background var(--tr),border-color var(--tr);
+  font-family:var(--mono);margin-bottom:-2px;
+}
+.tab:hover{color:var(--ink);background:var(--paper3)}
+.tab.on{color:var(--ink);background:var(--paper);border-bottom-color:var(--red)}
+.tact{margin-left:auto;display:flex;align-items:center;padding:.4rem .65rem;gap:.4rem;border-left:1px solid var(--rule)}
+.tbtn{
+  padding:.35rem .6rem;font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--paper);border:1.5px solid var(--ink3);color:var(--ink3);
+  cursor:pointer;transition:var(--tr);font-family:var(--mono);
+}
+.tbtn:hover{border-color:var(--ink);color:var(--ink);background:var(--paper3)}
+
+/* Panes */
+.pane{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.pane.hid{display:none}
+.pi{flex:1;overflow-y:auto;padding:1.2rem}
+.pi::-webkit-scrollbar{width:5px}
+.pi::-webkit-scrollbar-thumb{background:var(--rule)}
+
+/* Empty state */
+.es{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:280px;gap:.85rem;text-align:center}
+.eico{font-size:3.5rem;opacity:.08;font-family:var(--font);font-style:italic;line-height:1}
+.et{font-size:1.1rem;font-family:var(--font);font-style:italic;color:var(--ink3)}
+.es2{font-size:.74rem;color:var(--ink4);line-height:1.7;max-width:220px}
+.es2 strong{color:var(--ink3)}
+
+/* Banner */
+.banner{
+  display:flex;align-items:flex-start;gap:.75rem;
+  padding:.75rem .9rem;margin-bottom:1rem;
+  border:2px solid;
+  font-size:.78rem;font-weight:600;font-family:var(--mono);
+  position:relative;display:none;
+}
+.banner::before{content:'';position:absolute;inset:3px;border:1px solid;opacity:.2;pointer-events:none;border-color:inherit}
+.banner.ok{border-color:var(--green);color:var(--green);background:rgba(26,74,46,.04)}
+.banner.fail{border-color:var(--red);color:var(--red);background:rgba(192,57,43,.04)}
+.bico{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+.btxt{flex:1;line-height:1.6}
+.bst{margin-left:auto;font-size:.7rem;opacity:.65;white-space:nowrap;padding-left:.5rem;font-family:var(--mono)}
+
+/* Derivation steps */
+.dc{display:flex;flex-direction:column;gap:.5rem}
+.dmh{
+  font-size:.65rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--red);padding:.4rem 0;margin-top:.6rem;
+  display:flex;align-items:center;gap:.6rem;
+  font-family:var(--mono);
+}
+.dmh::before{content:'';flex:0 0 20px;height:2px;background:var(--red)}
+.dmh:first-child{margin-top:0}
+
+.sc{
+  display:grid;grid-template-columns:44px 1fr auto;align-items:start;gap:.65rem;
+  padding:.6rem .8rem;border:1.5px solid var(--rule);
+  background:var(--paper);position:relative;
+  transition:border-color var(--tr),background var(--tr);
+}
+.sc::after{content:'';position:absolute;bottom:-1px;right:-1px;width:8px;height:8px;background:var(--rule)}
+.sc:hover{border-color:var(--ink3);background:var(--paper2)}
+.sc.sf{border-color:var(--blue);border-left:4px solid var(--blue)}
+.sc.sl2{border-color:var(--green);border-left:4px solid var(--green)}
+
+.snum{
+  font-family:var(--mono);font-size:.65rem;font-weight:700;color:var(--ink4);
+  border:1px solid var(--rule);padding:2px 4px;text-align:center;align-self:start;
+  background:var(--paper3);
+}
+.sf .snum{color:var(--blue);border-color:var(--blue);background:rgba(26,58,92,.06)}
+.sl2 .snum{color:var(--green);border-color:var(--green);background:rgba(26,74,46,.06)}
+
+.sb2{min-width:0}
+.ss{font-family:var(--mono);font-size:.88rem;line-height:1.8;word-break:break-all;color:var(--ink)}
+.ss .hl{
+  color:var(--red);font-weight:700;
+  background:rgba(192,57,43,.08);padding:0 2px;
+  text-decoration:underline;text-decoration-color:var(--red);text-underline-offset:3px;
+}
+.ss .tm{color:var(--green)}
+.sl2 .ss{color:var(--green)}
+
+.sr2{font-size:.62rem;color:var(--ink4);margin-top:2px;font-family:var(--mono)}
+.sa2{font-size:.62rem;color:var(--ink4);white-space:nowrap;padding-top:3px;font-family:var(--mono);align-self:start;text-align:right}
+
+/* Tree pane */
+.ttb{
+  display:flex;align-items:center;gap:.6rem;
+  padding:.55rem .9rem;border-bottom:1.5px solid var(--rule);background:var(--paper2);flex-shrink:0;
+}
+.zl{font-family:var(--mono);font-size:.68rem;color:var(--ink3);margin-left:.2rem}
+.tvp{
+  flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;
+  padding:2rem;background:var(--paper);
+}
+.tvp::-webkit-scrollbar{width:5px;height:5px}
+.tvp::-webkit-scrollbar-thumb{background:var(--rule)}
+
+/* SVG tree */
+svg.tree .nte{fill:rgba(26,58,92,.07);stroke:var(--nt);stroke-width:2}
+svg.tree .tme{fill:rgba(26,74,46,.07);stroke:var(--term);stroke-width:2}
+svg.tree .eg{stroke:var(--rule);stroke-width:1.5;fill:none;stroke-dasharray:none}
+svg.tree .ntl{fill:var(--nt);font-weight:700}
+svg.tree .tml{fill:var(--term);font-weight:700}
+
+/* Animation pane */
+.atb{
+  display:flex;align-items:center;gap:.5rem;
+  padding:.6rem .9rem;border-bottom:1.5px solid var(--rule);background:var(--paper2);flex-shrink:0;
+}
+.abtn{
+  display:flex;align-items:center;gap:.4rem;
+  padding:.38rem .8rem;font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  background:var(--paper);border:1.5px solid var(--ink3);color:var(--ink2);
+  cursor:pointer;transition:var(--tr);font-family:var(--mono);
+}
+.abtn:hover{border-color:var(--ink);color:var(--ink);background:var(--paper3);transform:translate(-1px,-1px);box-shadow:2px 2px 0 var(--ink3)}
+.abtn:active{transform:translate(1px,1px);box-shadow:none}
+.asi{margin-left:auto;font-family:var(--mono);font-size:.68rem;color:var(--ink3)}
+
+.astg{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:2rem;position:relative;overflow:hidden;background:var(--paper);
+  /* Fine graph paper for the stage */
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:20px 20px;
+}
+
+.apbar{height:4px;background:var(--paper3);flex-shrink:0;border-top:1px solid var(--rule)}
+.apfill{height:100%;background:var(--red);width:0%;transition:width .3s ease}
+
+/* Anim symbols */
+.afd{
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:clamp(1rem,2.5vw,1.8rem);max-width:90%;line-height:2;
+}
+.asym{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:42px;height:46px;padding:0 12px;
+  border:2px solid;font-weight:700;
+  transition:all .3s cubic-bezier(.4,0,.2,1);
+  position:relative;
+}
+.asym.ant{border-color:var(--blue);color:var(--blue);background:rgba(26,58,92,.06)}
+.asym.atm{border-color:var(--green);color:var(--green);background:rgba(26,74,46,.06)}
+.asym.aex{
+  border-color:var(--red);color:var(--red);background:rgba(192,57,43,.1);
+  transform:scale(1.18);
+  box-shadow:4px 4px 0 var(--ink),0 0 0 2px var(--red);
+  animation:stamp .5s ease infinite alternate;
+}
+@keyframes stamp{from{box-shadow:4px 4px 0 var(--ink)}to{box-shadow:6px 6px 0 var(--ink),0 0 0 3px rgba(192,57,43,.3)}}
+.asym.anw{animation:inkDrop .4s cubic-bezier(.175,.885,.32,1.275) both}
+@keyframes inkDrop{from{opacity:0;transform:scale(.3) translateY(-16px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.asym.acc{border-color:var(--green);color:var(--green);background:rgba(26,74,46,.1);box-shadow:3px 3px 0 var(--green)}
+
+.arb{
+  margin-top:.75rem;padding:.35rem .85rem;
+  border:1.5px solid var(--ink3);color:var(--ink2);
+  font-family:var(--mono);font-size:.75rem;background:var(--paper2);
+  box-shadow:2px 2px 0 var(--ink3);
+}
+.asl{position:absolute;bottom:.9rem;font-size:.65rem;color:var(--ink4);font-family:var(--mono)}
+
+/* Accept burst — ink stamp rings */
+.aburst{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .3s}
+.aburst.show{opacity:1}
+.aring{
+  width:200px;height:200px;border-radius:50%;
+  border:4px solid var(--red);position:absolute;
+  animation:ringOut .9s ease-out forwards;
+}
+@keyframes ringOut{from{transform:scale(0);opacity:.7}to{transform:scale(2.5);opacity:0}}
+
+/* Info pane */
+.ic{display:flex;flex-direction:column;gap:.9rem}
+.icd{border:1.5px solid var(--rule);background:var(--paper);position:relative}
+.icd::after{content:'';position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;background:var(--paper2);border-top:1.5px solid var(--rule);border-left:1.5px solid var(--rule)}
+.ict{
+  background:var(--ink2);color:var(--paper);
+  font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;font-family:var(--mono);font-weight:700;
+  padding:.4rem .75rem;display:flex;align-items:center;gap:.5rem;
+}
+.ict::before{content:'//';color:var(--red);font-size:.65rem}
+.sg{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--rule)}
+.sb3{
+  padding:.65rem .75rem;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  display:flex;flex-direction:column;gap:2px;
+}
+.sb3:nth-child(3n){border-right:none}
+.sv{font-family:var(--mono);font-size:1.5rem;font-weight:700;color:var(--ink);line-height:1}
+.sv.ok{color:var(--green)}.sv.warn{color:var(--amber)}.sv.err{color:var(--red)}
+.slb{font-size:.58rem;color:var(--ink4);text-transform:uppercase;letter-spacing:.08em;font-family:var(--mono)}
+.tl{display:flex;flex-wrap:wrap;gap:5px;padding:.65rem .75rem}
+.tg{font-family:var(--mono);font-size:.72rem;font-weight:700;padding:2px 10px;border:1.5px solid}
+.tg.nt{color:var(--blue);border-color:var(--blue);background:rgba(26,58,92,.05)}
+.tg.tm{color:var(--green);border-color:var(--green);background:rgba(26,74,46,.05)}
+.pl{display:flex;flex-direction:column;gap:0}
+.pi3{font-family:var(--mono);font-size:.76rem;padding:.45rem .75rem;border-bottom:1px solid var(--rule);line-height:1.5;color:var(--ink)}
+.pi3:last-child{border-bottom:none}
+.pi3 .lh{color:var(--blue);font-weight:700}
+.pi3 .ar{color:var(--ink4);margin:0 .35rem}
+
+/* Pages */
+.pg{position:relative;z-index:5;margin-top:var(--hh);min-height:calc(100vh - var(--hh));padding:3rem 2.5rem;display:none}
+.pg.on{display:block}
+.pgw{max-width:860px;margin:0 auto}
+.pgt{
+  font-family:var(--font);font-size:2.5rem;font-style:italic;
+  color:var(--ink);margin-bottom:.35rem;letter-spacing:-.01em;
+}
+.pgt em{color:var(--red)}
+.pgt-sub{font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:var(--ink4);font-family:var(--mono);margin-bottom:2rem;padding-bottom:1rem;border-bottom:2px solid var(--ink)}
+.hg{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+.hc{border:2px solid var(--ink);padding:1.3rem;background:var(--paper);position:relative}
+.hc::after{content:'';position:absolute;bottom:-4px;right:-4px;width:100%;height:100%;border:1.5px solid var(--ink3);z-index:-1}
+.hn{font-family:var(--mono);font-size:.6rem;font-weight:700;color:var(--red);margin-bottom:.6rem;letter-spacing:.15em;text-transform:uppercase}
+.hc h3{font-family:var(--font);font-size:1.1rem;font-style:italic;margin-bottom:.5rem}
+.hc p{font-size:.76rem;color:var(--ink2);line-height:1.7;margin-bottom:.45rem}
+.hc code{font-family:var(--mono);font-size:.75rem;background:var(--paper3);padding:1px 5px;color:var(--blue)}
+.hc pre{font-family:var(--mono);font-size:.72rem;color:var(--ink2);background:var(--paper3);border:1px solid var(--rule);padding:.65rem;margin-top:.4rem;line-height:1.6}
+.af{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-top:1.5rem}
+.af div{padding:.9rem;border:1.5px solid var(--ink3);font-size:.78rem;color:var(--ink2);line-height:1.5;font-family:var(--mono)}
+.ad{font-size:.9rem;color:var(--ink2);line-height:1.8;margin-bottom:1rem;max-width:540px;font-family:var(--mono)}
+
+@media(max-width:768px){
+  :root{--sw:100%}
+  .shell{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  aside{max-height:45vh}
+  .hg,.af{grid-template-columns:1fr}
+  .sg{grid-template-columns:1fr 1fr}
+  nav{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <button class="brand" onclick="showPage('main')">
+    <div class="brand-stamp">G</div>
+    <div>
+      <div class="brand-title">Grammar<span>viz</span></div>
+      <span class="brand-sub">Derivation Engine</span>
+    </div>
+  </button>
+  <nav>
+    <button class="nl on" id="nav-main" onclick="showPage('main')">Visualizer</button>
+    <button class="nl" id="nav-help" onclick="showPage('help')">Guide</button>
+    <button class="nl" id="nav-about" onclick="showPage('about')">About</button>
+  </nav>
+  <button class="hbtn" onclick="toggleTheme()" id="themeBtn">◑ Theme</button>
+</header>
+
+<!-- ═══ MAIN SHELL ═══ -->
+<div class="shell" id="pg-main">
+  <aside>
+    <div class="side-top">
+      <span>// Input Parameters</span>
+      <div class="side-top-dot"></div>
+    </div>
+    <div class="side-body">
+
+      <div class="blk">
+        <div class="blk-hd"><span class="blk-hd-num">1</span> Grammar Definition</div>
+        <div class="blk-body">
+          <div>
+            <span class="lbl">Start Symbol</span>
+            <input type="text" id="startSymbol" value="S" maxlength="8" class="sm" spellcheck="false" autocomplete="off"/>
+          </div>
+          <div>
+            <span class="lbl">Production Rules <span class="lbl-hint">// A → BC | d</span></span>
+            <textarea id="grammarRules" spellcheck="false" autocomplete="off">S → AB | a
+A → aA | a
+B → bB | b</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="blk">
+        <div class="blk-hd"><span class="blk-hd-num">2</span> Input String</div>
+        <div class="blk-body">
+          <div>
+            <span class="lbl">String to derive</span>
+            <input type="text" id="inputString" value="aab" spellcheck="false" autocomplete="off"/>
+          </div>
+          <div class="tok" id="tokBox"></div>
+        </div>
+      </div>
+
+      <div class="blk">
+        <div class="blk-hd"><span class="blk-hd-num">3</span> Configuration</div>
+        <div class="blk-body">
+          <div>
+            <span class="lbl">Derivation Mode</span>
+            <div class="seg">
+              <button class="sb on" id="seg-leftmost">L-Most</button>
+              <button class="sb" id="seg-rightmost">R-Most</button>
+              <button class="sb" id="seg-both">Both</button>
+            </div>
+          </div>
+          <div>
+            <span class="lbl">Playback Speed</span>
+            <div class="spd">
+              <button class="spdb on" id="spd-slow">Slow</button>
+              <button class="spdb" id="spd-normal">Normal</button>
+              <button class="spdb" id="spd-fast">Fast</button>
+            </div>
+          </div>
+          <div>
+            <span class="lbl">Max Steps <span class="rv" id="msv">20</span></span>
+            <input type="range" id="maxSteps" min="5" max="60" value="20" oninput="document.getElementById('msv').textContent=this.value"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="blk">
+        <div class="blk-hd"><span class="blk-hd-num">4</span> Preset Grammars</div>
+        <div class="blk-body">
+          <div class="prg">
+            <button class="pc2" onclick="loadPreset('anbn')"><span class="pn">aⁿbⁿ</span><span class="pd3">equal counts</span></button>
+            <button class="pc2" onclick="loadPreset('arith')"><span class="pn">Arith</span><span class="pd3">expressions</span></button>
+            <button class="pc2" onclick="loadPreset('palin')"><span class="pn">Palindrome</span><span class="pd3">mirror strings</span></button>
+            <button class="pc2" onclick="loadPreset('paren')"><span class="pn">Parens</span><span class="pd3">balanced ( )</span></button>
+          </div>
+        </div>
+      </div>
+
+      <button class="gen" id="genBtn" onclick="doGenerate()">
+        <span id="genTxt">RUN DERIVATION</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+      </button>
+      <div class="errmsg" id="errBox"></div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="tbar">
+      <button class="tab on" data-t="deriv">01 / Derivation Steps</button>
+      <button class="tab" data-t="tree">02 / Parse Tree</button>
+      <button class="tab" data-t="anim">03 / Live Animation</button>
+      <button class="tab" data-t="info">04 / Grammar Analysis</button>
+      <div class="tact">
+        <button class="tbtn" onclick="exportSVG()">↓ Export SVG</button>
+      </div>
+    </div>
+
+    <!-- Derivation -->
+    <div class="pane" id="pane-deriv">
+      <div class="pi">
+        <div class="banner" id="banner"></div>
+        <div class="dc" id="derivOut">
+          <div class="es">
+            <div class="eico">∂</div>
+            <p class="et">Awaiting input</p>
+            <p class="es2">Define your grammar, set an input string, and click <strong>Run Derivation</strong></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tree -->
+    <div class="pane hid" id="pane-tree">
+      <div class="ttb">
+        <span style="font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);font-family:var(--mono)">Parse Tree Viewer</span>
+        <div style="display:flex;gap:4px;margin-left:1rem">
+          <button class="tbtn" onclick="zoomT(1.2)">＋</button>
+          <button class="tbtn" onclick="zoomT(0.85)">－</button>
+          <button class="tbtn" onclick="zoomT(0)">Reset</button>
+        </div>
+        <span class="zl" id="zlbl">100%</span>
+      </div>
+      <div class="tvp" id="treeVP">
+        <div class="es"><div class="eico">T</div><p class="et">No parse tree</p><p class="es2">Run a derivation first</p></div>
+      </div>
+    </div>
+
+    <!-- Animation -->
+    <div class="pane hid" id="pane-anim">
+      <div class="atb">
+        <button class="abtn" onclick="animPlay()">▶ Play</button>
+        <button class="abtn" onclick="animPause()">⏸ Pause</button>
+        <button class="abtn" onclick="animReset()">↺ Reset</button>
+        <div class="asi" id="animInfo">Step 0 / 0</div>
+      </div>
+      <div class="astg" id="animStage">
+        <div class="es"><div class="eico">▶</div><p class="et">Live Animation</p><p class="es2">Run a derivation to watch it unfold step by step</p></div>
+      </div>
+      <div class="apbar"><div class="apfill" id="animProg"></div></div>
+    </div>
+
+    <!-- Info -->
+    <div class="pane hid" id="pane-info">
+      <div class="pi">
+        <div class="ic" id="infoOut">
+          <div class="es"><div class="eico">∑</div><p class="et">Grammar Analysis</p><p class="es2">Run a derivation to see detailed analysis</p></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- HELP PAGE -->
+<div id="pg-help" class="pg">
+  <div class="pgw">
+    <h2 class="pgt"><em>Using</em> Grammarviz</h2>
+    <p class="pgt-sub">// Context-Free Grammar Derivation Tool — Reference Guide</p>
+    <div class="hg">
+      <div class="hc"><div class="hn">// 01</div><h3>Write Grammar Rules</h3><p>Enter productions in the sidebar. Format: <code>A → BC | d</code>. One non-terminal per line.</p><pre>S → AB | a
+A → aA | a
+B → bB | b</pre></div>
+      <div class="hc"><div class="hn">// 02</div><h3>Set Input String</h3><p>Enter the string you want to check. Use <code>ε</code> for empty string productions. Characters are tokenized as you type.</p></div>
+      <div class="hc"><div class="hn">// 03</div><h3>Choose Derivation Mode</h3><p><strong>L-Most:</strong> Always expands the leftmost non-terminal first.</p><p><strong>R-Most:</strong> Always expands the rightmost non-terminal.</p><p><strong>Both:</strong> Shows both derivation types side by side.</p></div>
+      <div class="hc"><div class="hn">// 04</div><h3>Read the Output</h3><p><strong>Derivation Steps:</strong> Each step card shows the sentential form with the expanded symbol highlighted.</p><p><strong>Parse Tree:</strong> Zoomable SVG, exportable to file.</p><p><strong>Live Animation:</strong> Step-by-step playback with accept effect.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ABOUT PAGE -->
+<div id="pg-about" class="pg">
+  <div class="pgw">
+    <h2 class="pgt"><em>About</em> Grammarviz</h2>
+    <p class="pgt-sub">// Context-Free Grammar Derivation Engine</p>
+    <p class="ad">An interactive educational tool for visualizing Context-Free Grammar derivations and parse trees. Built for students of Formal Languages &amp; Automata Theory.</p>
+    <div class="af">
+      <div>// BFS-based derivation engine</div>
+      <div>// Leftmost &amp; rightmost modes</div>
+      <div>// Animated step-by-step playback</div>
+      <div>// Interactive zoomable parse trees</div>
+      <div>// CNF &amp; grammar analysis</div>
+      <div>// SVG export</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// STATE + THEME
+// ═══════════════════════════════════════════════════
+var APP={mode:'leftmost',speed:600,zoom:1,aSteps:null,aNT:null,aIdx:0,aTimer:null,aPlay:false};
+var DARK_ACTIVE=false;
+function toggleTheme(){
+  DARK_ACTIVE=!DARK_ACTIVE;
+  if(DARK_ACTIVE){
+    document.documentElement.style.setProperty('--paper','#131008');
+    document.documentElement.style.setProperty('--paper2','#1a1509');
+    document.documentElement.style.setProperty('--paper3','#22190a');
+    document.documentElement.style.setProperty('--ink','#f0ead8');
+    document.documentElement.style.setProperty('--ink2','#d4cbb5');
+    document.documentElement.style.setProperty('--ink3','#907e65');
+    document.documentElement.style.setProperty('--ink4','#5a4e3a');
+    document.documentElement.style.setProperty('--rule','#2e2515');
+    document.documentElement.style.setProperty('--grid','rgba(200,185,160,.06)');
+    document.documentElement.style.setProperty('--nt','#6ba3d6');
+    document.documentElement.style.setProperty('--term','#6bc97e');
+    document.getElementById('themeBtn').textContent='☀ Theme';
+  }else{
+    document.documentElement.style.setProperty('--paper','#f5f0e8');
+    document.documentElement.style.setProperty('--paper2','#ede8dc');
+    document.documentElement.style.setProperty('--paper3','#e0d9cc');
+    document.documentElement.style.setProperty('--ink','#1a1410');
+    document.documentElement.style.setProperty('--ink2','#3d3530');
+    document.documentElement.style.setProperty('--ink3','#7a6e65');
+    document.documentElement.style.setProperty('--ink4','#b0a89e');
+    document.documentElement.style.setProperty('--rule','#c8bfb0');
+    document.documentElement.style.setProperty('--grid','rgba(100,90,80,.09)');
+    document.documentElement.style.setProperty('--nt','#1a3a5c');
+    document.documentElement.style.setProperty('--term','#1a4a2e');
+    document.getElementById('themeBtn').textContent='◑ Theme';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',function(){
+  document.getElementById('seg-leftmost').addEventListener('click',function(){setMode('leftmost',this);});
+  document.getElementById('seg-rightmost').addEventListener('click',function(){setMode('rightmost',this);});
+  document.getElementById('seg-both').addEventListener('click',function(){setMode('both',this);});
+  document.getElementById('spd-slow').addEventListener('click',function(){setSpeed(600,this);});
+  document.getElementById('spd-normal').addEventListener('click',function(){setSpeed(300,this);});
+  document.getElementById('spd-fast').addEventListener('click',function(){setSpeed(100,this);});
+  document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){switchTab(this.dataset.t);});});
+  document.getElementById('inputString').addEventListener('input',updateTokens);
+  updateTokens();
+});
+
+function setMode(m,btn){APP.mode=m;document.querySelectorAll('.sb').forEach(function(b){b.classList.remove('on');});btn.classList.add('on');}
+function setSpeed(s,btn){APP.speed=s;document.querySelectorAll('.spdb').forEach(function(b){b.classList.remove('on');});btn.classList.add('on');}
+
+// ═══════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function showErr(msg){var b=document.getElementById('errBox');if(!msg){b.style.display='none';return;}b.textContent=msg;b.style.display='block';}
+function updateTokens(){
+  var v=document.getElementById('inputString').value.trim();
+  var b=document.getElementById('tokBox');
+  if(!v){b.innerHTML='<span style="font-size:.65rem;color:var(--ink4);font-family:var(--mono)">ε (empty string)</span>';return;}
+  b.innerHTML=v.split('').map(function(c){return'<span class="tk">'+esc(c)+'</span>';}).join('');
+}
+function showPage(id){
+  document.querySelectorAll('.nl').forEach(function(b){b.classList.remove('on');});
+  var nb=document.getElementById('nav-'+id);if(nb)nb.classList.add('on');
+  var m=document.getElementById('pg-main');if(m)m.style.display=id==='main'?'':'none';
+  document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on');});
+  if(id!=='main'){var pg=document.getElementById('pg-'+id);if(pg)pg.classList.add('on');}
+}
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on');});
+  var t=document.querySelector('.tab[data-t="'+id+'"]');if(t)t.classList.add('on');
+  document.querySelectorAll('.pane').forEach(function(p){p.classList.add('hid');p.classList.remove('on');});
+  var pane=document.getElementById('pane-'+id);if(pane){pane.classList.remove('hid');pane.classList.add('on');}
+}
+function exportSVG(){
+  var svg=document.querySelector('#treeVP svg');if(!svg){alert('Generate a parse tree first.');return;}
+  var d=new XMLSerializer().serializeToString(svg);
+  var b=new Blob([d],{type:'image/svg+xml'});
+  var u=URL.createObjectURL(b),a=document.createElement('a');
+  a.href=u;a.download='parse_tree.svg';a.click();URL.revokeObjectURL(u);
+}
+function zoomT(factor){
+  var svg=document.querySelector('#treeVP svg');if(!svg)return;
+  APP.zoom=factor===0?1:Math.max(.2,Math.min(4,APP.zoom*factor));
+  var w=parseFloat(svg.getAttribute('data-w')),h=parseFloat(svg.getAttribute('data-h'));
+  svg.setAttribute('width',(w*APP.zoom)+'px');svg.setAttribute('height',(h*APP.zoom)+'px');
+  document.getElementById('zlbl').textContent=Math.round(APP.zoom*100)+'%';
+}
+
+// ═══════════════════════════════════════════════════
+// PRESETS
+// ═══════════════════════════════════════════════════
+var PRESETS={
+  anbn:{start:'S',rules:'S → a S b | a b',input:'aaabbb'},
+  arith:{start:'E',rules:'E → E + T | T\nT → T * F | F\nF → ( E ) | id',input:'id + id * id'},
+  palin:{start:'S',rules:'S → a S a | b S b | a | b | ε',input:'abba'},
+  paren:{start:'S',rules:'S → ( S ) | S S | ε',input:'(())'}
+};
+function loadPreset(k){
+  var p=PRESETS[k];if(!p)return;
+  document.getElementById('startSymbol').value=p.start;
+  document.getElementById('grammarRules').value=p.rules;
+  document.getElementById('inputString').value=p.input;
+  updateTokens();showErr('');
+}
+
+// ═══════════════════════════════════════════════════
+// CFG ENGINE (identical logic)
+// ═══════════════════════════════════════════════════
+function parseGrammar(txt,start){
+  var grammar={},allNT=new Set(),allT=new Set();
+  txt.split('\n').forEach(function(line){
+    line=line.trim();if(!line)return;
+    var sep=line.indexOf('→')>=0?'→':line.indexOf('->')>=0?'->':':=';
+    var si=line.indexOf(sep);if(si<0)return;
+    var lhs=line.slice(0,si).trim(),rhs=line.slice(si+sep.length);
+    if(!lhs)return;
+    allNT.add(lhs);grammar[lhs]=grammar[lhs]||[];
+    rhs.split('|').forEach(function(alt){
+      alt=alt.trim();if(alt==='')return;
+      if(alt==='ε'||alt==='eps'||alt==='epsilon'){grammar[lhs].push(['ε']);return;}
+      var syms=alt.indexOf(' ')>=0?alt.split(/\s+/).filter(Boolean):alt.split('');
+      grammar[lhs].push(syms);
+    });
+  });
+  Object.values(grammar).forEach(function(prods){prods.forEach(function(p){p.forEach(function(s){if(s!=='ε'&&!allNT.has(s))allT.add(s);});});});
+  return{grammar:grammar,allNT:allNT,allT:allT};
+}
+function fstr(form){return form.filter(function(s){return s!=='ε';}).join('');}
+function deriveLeft(grammar,allNT,start,target,maxSteps){
+  var queue=[{form:[start],path:[[start]]}],visited=new Set();
+  while(queue.length>0){
+    var cur=queue.shift(),form=cur.form,path=cur.path;
+    if(path.length>maxSteps+1)continue;
+    var key=form.join('\x00');if(visited.has(key))continue;visited.add(key);
+    if(fstr(form)===target&&!form.some(function(s){return allNT.has(s);}))return path;
+    var idx=form.findIndex(function(s){return allNT.has(s);});if(idx<0)continue;
+    var sym=form[idx];
+    (grammar[sym]||[]).forEach(function(prod){queue.push({form:form.slice(0,idx).concat(prod).concat(form.slice(idx+1)),path:path.concat([form.slice(0,idx).concat(prod).concat(form.slice(idx+1))])});});
+  }
+  return null;
+}
+function deriveRight(grammar,allNT,start,target,maxSteps){
+  var queue=[{form:[start],path:[[start]]}],visited=new Set();
+  while(queue.length>0){
+    var cur=queue.shift(),form=cur.form,path=cur.path;
+    if(path.length>maxSteps+1)continue;
+    var key=form.join('\x00');if(visited.has(key))continue;visited.add(key);
+    if(fstr(form)===target&&!form.some(function(s){return allNT.has(s);}))return path;
+    var idx=-1;for(var i=form.length-1;i>=0;i--){if(allNT.has(form[i])){idx=i;break;}}if(idx<0)continue;
+    var sym=form[idx];
+    (grammar[sym]||[]).forEach(function(prod){queue.push({form:form.slice(0,idx).concat(prod).concat(form.slice(idx+1)),path:path.concat([form.slice(0,idx).concat(prod).concat(form.slice(idx+1))])});});
+  }
+  return null;
+}
+function buildTree(grammar,allNT,start,steps){
+  if(!steps||steps.length<1)return null;
+  function mk(sym){return{sym:sym,children:[]};}
+  var root=mk(start),leaves=[root];
+  for(var i=1;i<steps.length;i++){
+    var step=steps[i],ni=leaves.findIndex(function(n){return allNT.has(n.sym);});if(ni<0)break;
+    var leaf=leaves[ni],pf=steps[i-1],li=pf.findIndex(function(s){return allNT.has(s);});
+    var used=null;
+    (grammar[leaf.sym]||[]).forEach(function(p){if(used)return;var tf=pf.slice(0,li).concat(p).concat(pf.slice(li+1));if(tf.join('\x00')===step.join('\x00'))used=p;});
+    if(!used)continue;
+    used.forEach(function(cs){leaf.children.push(mk(cs));});
+    leaves=leaves.slice(0,ni).concat(leaf.children).concat(leaves.slice(ni+1));
+  }
+  return root;
+}
+function analyzeGrammar(grammar,allNT,allT,start){
+  var ntArr=[...allNT],tArr=[...allT],prodCount=0,hasUnit=false,hasEps=false,isCNF=true;
+  Object.values(grammar).forEach(function(prods){prods.forEach(function(p){
+    prodCount++;
+    if(p[0]==='ε'){hasEps=true;isCNF=false;}
+    else if(p.length===1&&allNT.has(p[0])){hasUnit=true;isCNF=false;}
+    else if(p.length===2&&allNT.has(p[0])&&allNT.has(p[1])){}
+    else if(p.length===1&&!allNT.has(p[0])){}
+    else isCNF=false;
+  });});
+  var reachable=new Set([start]),changed=true;
+  while(changed){changed=false;reachable.forEach(function(nt){(grammar[nt]||[]).forEach(function(p){p.forEach(function(s){if(allNT.has(s)&&!reachable.has(s)){reachable.add(s);changed=true;}});});});}
+  return{ntArr:ntArr,tArr:tArr,prodCount:prodCount,hasUnit:hasUnit,hasEps:hasEps,isCNF:isCNF,unreachable:ntArr.filter(function(nt){return!reachable.has(nt);})};
+}
+
+// ═══════════════════════════════════════════════════
+// SVG TREE
+// ═══════════════════════════════════════════════════
+var NR=24,LH=76;
+function measure(n){if(!n.children||!n.children.length){n.w=NR*2+20;return;}n.children.forEach(measure);n.w=n.children.reduce(function(s,c){return s+c.w;},0);}
+function layout(n,x,y){n.x=x+n.w/2;n.y=y;var cx=x;(n.children||[]).forEach(function(c){layout(c,cx,y+LH);cx+=c.w;});}
+function renderSVG(root,allNT){
+  measure(root);var PAD=44;layout(root,PAD,NR+PAD);
+  var maxY=0;function gmy(n){if(n.y>maxY)maxY=n.y;(n.children||[]).forEach(gmy);}gmy(root);
+  var W=root.w+PAD*2,H=maxY+NR+PAD*2,nodes=[],edges=[];
+  function col(n){nodes.push(n);(n.children||[]).forEach(function(c){edges.push({x1:n.x,y1:n.y,x2:c.x,y2:c.y});col(c);});}col(root);
+  var bg=DARK_ACTIVE?'#131008':'#f5f0e8';
+  var s='<svg class="tree" xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" data-w="'+W+'" data-h="'+H+'" style="font-family:\'IBM Plex Mono\',monospace;overflow:visible;background:'+bg+'"><defs><filter id="ng"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-color="rgba(0,0,0,0.15)"/></filter></defs><g>';
+  edges.forEach(function(e){s+='<line class="eg" x1="'+e.x1.toFixed(1)+'" y1="'+e.y1.toFixed(1)+'" x2="'+e.x2.toFixed(1)+'" y2="'+e.y2.toFixed(1)+'"/>';});
+  nodes.forEach(function(n){
+    var iT=n.sym==='ε'||!allNT.has(n.sym);
+    s+='<g transform="translate('+n.x.toFixed(1)+','+n.y.toFixed(1)+')" style="filter:url(#ng)">'
+      +'<rect class="'+(iT?'tme':'nte')+'" x="-'+(NR)+'" y="-'+(NR)+'" width="'+(NR*2)+'" height="'+(NR*2)+'" rx="0"/>'
+      +'<text class="'+(iT?'tml':'ntl')+'" x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="12" font-family="IBM Plex Mono,monospace">'+esc(n.sym)+'</text></g>';
+  });
+  return s+'</g></svg>';
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER STEPS
+// ═══════════════════════════════════════════════════
+function renderSteps(steps,allNT,label){
+  if(!steps||!steps.length)return'';
+  var html='<div class="dmh">'+esc(label)+'</div>';
+  for(var i=0;i<steps.length;i++){
+    var step=steps[i],isF=(i===0),isL=(i===steps.length-1);
+    var cls=isL?'sc sl2':isF?'sc sf':'sc';
+    var hlIdx=(!isL&&steps[i+1])?step.findIndex(function(s){return allNT.has(s);}): -1;
+    var str='';
+    for(var j=0;j<step.length;j++){
+      var sym=esc(step[j]);
+      if(j===hlIdx)str+='<span class="hl">'+sym+'</span>';
+      else if(!allNT.has(step[j])&&step[j]!=='ε')str+='<span class="tm">'+sym+'</span>';
+      else str+=sym;
+    }
+    var rl='';
+    if(!isF&&i>0){var pf=steps[i-1],pi=pf.findIndex(function(s){return allNT.has(s);});if(pi>=0){var lhs=pf[pi],prod=step.slice(pi,pi+(step.length-pf.length+1)).join(' ');rl='<div class="sr2">// applied: '+esc(lhs)+' → '+esc(prod)+'</div>';}}
+    html+='<div class="'+cls+'" style="animation-delay:'+(i*.03)+'s">'
+      +'<span class="snum">'+(isF?'S₀':'S'+i)+'</span>'
+      +'<div class="sb2"><div class="ss">'+(str||'ε')+'</div>'+rl+'</div>'
+      +'<span class="sa2">'+(isF?'// init':isL?'// accept':'// ⇒')+'</span></div>';
+  }
+  return html;
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER INFO
+// ═══════════════════════════════════════════════════
+function renderInfo(grammar,analysis,start,derived,ll,rl2){
+  var a=analysis;
+  var html='<div class="icd"><div class="ict">Summary Statistics</div><div class="sg">'
+    +'<div class="sb3"><div class="sv">'+a.ntArr.length+'</div><div class="slb">Non-Terminals</div></div>'
+    +'<div class="sb3"><div class="sv">'+a.tArr.length+'</div><div class="slb">Terminals</div></div>'
+    +'<div class="sb3"><div class="sv">'+a.prodCount+'</div><div class="slb">Productions</div></div>'
+    +'<div class="sb3"><div class="sv '+(derived?'ok':'err')+'">'+(derived?'✓':'✗')+'</div><div class="slb">Accepted</div></div>'
+    +'<div class="sb3"><div class="sv '+(a.isCNF?'ok':'warn')+'">'+(a.isCNF?'Yes':'No')+'</div><div class="slb">CNF Form</div></div>'
+    +'<div class="sb3"><div class="sv '+(a.unreachable.length===0?'ok':'warn')+'">'+(a.unreachable.length===0?'✓':a.unreachable.length)+'</div><div class="slb">Unreachable</div></div>'
+    +'</div></div>';
+  html+='<div class="icd"><div class="ict">Symbol Sets</div>'
+    +'<div style="padding:.65rem .75rem;border-bottom:1px solid var(--rule)"><div style="font-size:.6rem;color:var(--ink4);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.1em;font-family:var(--mono)">// Non-Terminals N</div><div class="tl" style="padding:0">'+a.ntArr.map(function(s){return'<span class="tg nt">'+esc(s)+'</span>';}).join('')+'</div></div>'
+    +'<div style="padding:.65rem .75rem"><div style="font-size:.6rem;color:var(--ink4);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.1em;font-family:var(--mono)">// Terminals Σ</div><div class="tl" style="padding:0">'+a.tArr.map(function(s){return'<span class="tg tm">'+esc(s)+'</span>';}).join('')+'</div></div>'
+    +'</div>';
+  if(a.hasUnit||a.hasEps||a.unreachable.length>0){
+    html+='<div class="icd"><div class="ict">Warnings</div><div style="padding:.5rem .75rem;display:flex;flex-direction:column;gap:.35rem">'
+      +(a.hasEps?'<div style="font-size:.75rem;color:var(--amber);font-family:var(--mono);border:1px solid var(--amber);padding:.4rem .6rem;background:rgba(139,94,0,.05)">// ε-productions present</div>':'')
+      +(a.hasUnit?'<div style="font-size:.75rem;color:var(--amber);font-family:var(--mono);border:1px solid var(--amber);padding:.4rem .6rem;background:rgba(139,94,0,.05)">// unit productions present</div>':'')
+      +(a.unreachable.length>0?'<div style="font-size:.75rem;color:var(--err);font-family:var(--mono);border:1px solid var(--err);padding:.4rem .6rem;background:rgba(192,57,43,.05)">// unreachable: '+a.unreachable.map(esc).join(', ')+'</div>':'')
+      +'</div></div>';
+  }
+  if(ll!==null||rl2!==null){
+    html+='<div class="icd"><div class="ict">Derivation Lengths</div><div style="padding:.65rem .75rem;font-size:.76rem;color:var(--ink2);display:flex;flex-direction:column;gap:.3rem;font-family:var(--mono)">'
+      +(ll!==null?'<div>// leftmost: <strong style="color:var(--ink)">'+(ll-1)+' steps</strong></div>':'')
+      +(rl2!==null?'<div>// rightmost: <strong style="color:var(--ink)">'+(rl2-1)+' steps</strong></div>':'')
+      +'</div></div>';
+  }
+  html+='<div class="icd"><div class="ict">Production Rules</div><div class="pl">';
+  Object.entries(grammar).forEach(function(e){
+    html+='<div class="pi3"><span class="lh">'+esc(e[0])+'</span><span class="ar">→</span>'+esc(e[1].map(function(p){return p.join(' ');}).join(' | '))+'</div>';
+  });
+  return html+'</div></div>';
+}
+
+// ═══════════════════════════════════════════════════
+// ANIMATION
+// ═══════════════════════════════════════════════════
+function animSet(steps,ntSet){animPause();APP.aSteps=steps;APP.aNT=ntSet;APP.aIdx=0;APP.aPlay=false;animRender(0,false);animUpdateProg();}
+function animPlay(){if(!APP.aSteps)return;if(APP.aIdx>=APP.aSteps.length-1)APP.aIdx=0;APP.aPlay=true;animAdvance();}
+function animPause(){APP.aPlay=false;clearTimeout(APP.aTimer);}
+function animReset(){animPause();APP.aIdx=0;animRender(0,false);animUpdateProg();}
+function animAdvance(){
+  if(!APP.aPlay||!APP.aSteps)return;
+  if(APP.aIdx<APP.aSteps.length-1){APP.aIdx++;animRender(APP.aIdx,true);animUpdateProg();APP.aTimer=setTimeout(animAdvance,APP.speed);}
+  else{APP.aPlay=false;animBurst();}
+}
+function animUpdateProg(){
+  if(!APP.aSteps)return;
+  var pct=APP.aSteps.length<=1?100:(APP.aIdx/(APP.aSteps.length-1))*100;
+  document.getElementById('animProg').style.width=pct+'%';
+  document.getElementById('animInfo').textContent='Step '+APP.aIdx+' / '+(APP.aSteps.length-1);
+}
+function animRender(idx,anim){
+  var stg=document.getElementById('animStage');if(!APP.aSteps||!stg)return;
+  var form=APP.aSteps[idx],isLast=(idx===APP.aSteps.length-1);
+  var prevForm=idx>0?APP.aSteps[idx-1]:null;
+  var exIdx=prevForm?prevForm.findIndex(function(s){return APP.aNT.has(s);}): -1;
+  var ns=exIdx,ne=prevForm?exIdx+(form.length-prevForm.length+1):-1;
+  var syms='';
+  for(var i=0;i<form.length;i++){
+    var sym=form[i],isNT=APP.aNT.has(sym),isNew=anim&&ns>=0&&i>=ns&&i<ne;
+    var cls='asym '+(isLast?'acc':isNT?'ant':'atm');
+    if(isNew)cls+=' anw';
+    syms+='<span class="'+cls+'" style="animation-delay:'+(isNew?(i-ns)*.07:0)+'s">'+esc(sym)+'</span>';
+  }
+  var rule='';
+  if(prevForm&&exIdx>=0){var lhs=prevForm[exIdx],prod=form.slice(ns,ne).join(' ');rule='<div class="arb">'+esc(lhs)+' → '+esc(prod)+'</div>';}
+  var accept=isLast?'<div style="position:absolute;bottom:2rem;font-size:.78rem;font-weight:700;color:var(--green);letter-spacing:.12em;text-transform:uppercase;font-family:var(--mono);border:2px solid var(--green);padding:.3rem .9rem;background:rgba(26,74,46,.08)">// STRING ACCEPTED</div>':'';
+  stg.innerHTML='<div class="aburst" id="aburst"></div><div class="afd">'+syms+'</div>'+rule+accept+'<div class="asl">// step '+idx+' of '+(APP.aSteps.length-1)+'</div>';
+}
+function animBurst(){
+  var b=document.getElementById('aburst');if(!b)return;
+  b.classList.add('show');
+  b.innerHTML='<div class="aring" style="animation-delay:0s;border-color:var(--red)"></div><div class="aring" style="animation-delay:.25s;border-color:var(--green)"></div><div class="aring" style="animation-delay:.5s;border-color:var(--blue)"></div>';
+  setTimeout(function(){b.classList.remove('show');},1400);
+}
+
+// ═══════════════════════════════════════════════════
+// GENERATE
+// ═══════════════════════════════════════════════════
+function doGenerate(){
+  showErr('');
+  var start=document.getElementById('startSymbol').value.trim();
+  var rules=document.getElementById('grammarRules').value.trim();
+  var input=document.getElementById('inputString').value.trim();
+  var maxS=parseInt(document.getElementById('maxSteps').value)||20;
+  if(!start){showErr('Error: start symbol required.');return;}
+  if(!rules){showErr('Error: grammar rules required.');return;}
+  var btn=document.getElementById('genBtn'),txt=document.getElementById('genTxt');
+  btn.disabled=true;txt.textContent='COMPUTING…';
+  setTimeout(function(){
+    try{_run(start,rules,input,maxS);}
+    catch(e){showErr('Error: '+e.message);console.error(e);}
+    btn.disabled=false;txt.textContent='RUN DERIVATION';
+  },20);
+}
+function _run(start,rules,input,maxS){
+  var p=parseGrammar(rules,start);
+  var grammar=p.grammar,allNT=p.allNT,allT=p.allT;
+  if(!grammar[start]){showErr('Error: start symbol "'+start+'" has no rules.');return;}
+  var leftSteps=null,rightSteps=null;
+  if(APP.mode==='leftmost'||APP.mode==='both')leftSteps=deriveLeft(grammar,allNT,start,input,maxS);
+  if(APP.mode==='rightmost'||APP.mode==='both')rightSteps=deriveRight(grammar,allNT,start,input,maxS);
+  var derived=!!(leftSteps||rightSteps),primary=leftSteps||rightSteps;
+
+  var ban=document.getElementById('banner');
+  ban.className='banner '+(derived?'ok':'fail');
+  ban.style.display='flex';
+  var sc=primary?primary.length-1:0;
+  ban.innerHTML='<span class="bico">'+(derived?'✓':'✗')+'</span>'
+    +'<span class="btxt">String <strong>"'+esc(input||'ε')+'"</strong> '
+    +(derived?'accepted — derivable from the grammar':'rejected — not in the language')+'</span>'
+    +(derived?'<span class="bst">'+sc+' steps</span>':'');
+
+  var dhtml='';
+  if(derived){
+    if(leftSteps)dhtml+=renderSteps(leftSteps,allNT,'// Leftmost Derivation');
+    if(rightSteps)dhtml+=renderSteps(rightSteps,allNT,'// Rightmost Derivation');
+  }else{
+    dhtml='<div style="color:var(--ink3);font-size:.78rem;padding:.9rem;border:1.5px solid var(--rule);line-height:1.7;font-family:var(--mono)">// Could not derive <strong>"'+esc(input||'ε')+'"</strong> within <strong>'+maxS+'</strong> steps.<br>// Increase Max Steps or verify your grammar rules.</div>';
+  }
+  document.getElementById('derivOut').innerHTML=dhtml;
+
+  var tvp=document.getElementById('treeVP');
+  if(primary){
+    var root=buildTree(grammar,allNT,start,primary);
+    if(root){APP.zoom=1;tvp.innerHTML=renderSVG(root,allNT);document.getElementById('zlbl').textContent='100%';}
+    else tvp.innerHTML='<div class="es"><div class="eico">⚠</div><p class="et">Tree failed</p></div>';
+  }else{tvp.innerHTML='<div class="es"><div class="eico">✗</div><p class="et">No parse tree</p></div>';}
+
+  if(primary){animSet(primary,allNT);}
+  else{
+    document.getElementById('animStage').innerHTML='<div class="es"><div class="eico">✗</div><p class="et">Nothing to animate</p></div>';
+    document.getElementById('animProg').style.width='0%';
+    document.getElementById('animInfo').textContent='Step 0 / 0';
+  }
+
+  var analysis=analyzeGrammar(grammar,allNT,allT,start);
+  document.getElementById('infoOut').innerHTML=renderInfo(grammar,analysis,start,derived,leftSteps?leftSteps.length:null,rightSteps?rightSteps.length:null);
+  switchTab('deriv');
+}
+</script>
+</body>
+</html>
