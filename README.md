@@ -61,5 +61,3 @@ Provides a detailed diagnostic suite for the input grammar:
 ## 📜 License
 This project is developed for educational purposes. Feel free to use and modify the engine for learning Automata Theory.
 
----
-*Copyright © 2024 Manu Shreshtha Yadav (2024UCS1638)*
