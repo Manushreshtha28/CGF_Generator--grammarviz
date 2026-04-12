@@ -510,7 +510,6 @@ svg.tree .tml{fill:var(--term);font-weight:700}
   <button class="hbtn" onclick="toggleTheme()" id="themeBtn">◑ Theme</button>
 </header>
 
-<!-- ═══ MAIN SHELL ═══ -->
 <div class="shell" id="pg-main">
   <aside>
     <div class="side-top">
@@ -603,7 +602,6 @@ B → bB | b</textarea>
       </div>
     </div>
 
-    <!-- Derivation -->
     <div class="pane" id="pane-deriv">
       <div class="pi">
         <div class="banner" id="banner"></div>
@@ -617,7 +615,6 @@ B → bB | b</textarea>
       </div>
     </div>
 
-    <!-- Tree -->
     <div class="pane hid" id="pane-tree">
       <div class="ttb">
         <span style="font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);font-family:var(--mono)">Parse Tree Viewer</span>
@@ -633,7 +630,6 @@ B → bB | b</textarea>
       </div>
     </div>
 
-    <!-- Animation -->
     <div class="pane hid" id="pane-anim">
       <div class="atb">
         <button class="abtn" onclick="animPlay()">▶ Play</button>
@@ -647,7 +643,6 @@ B → bB | b</textarea>
       <div class="apbar"><div class="apfill" id="animProg"></div></div>
     </div>
 
-    <!-- Info -->
     <div class="pane hid" id="pane-info">
       <div class="pi">
         <div class="ic" id="infoOut">
@@ -658,7 +653,6 @@ B → bB | b</textarea>
   </main>
 </div>
 
-<!-- HELP PAGE -->
 <div id="pg-help" class="pg">
   <div class="pgw">
     <h2 class="pgt"><em>Using</em> Grammarviz</h2>
@@ -667,14 +661,13 @@ B → bB | b</textarea>
       <div class="hc"><div class="hn">// 01</div><h3>Write Grammar Rules</h3><p>Enter productions in the sidebar. Format: <code>A → BC | d</code>. One non-terminal per line.</p><pre>S → AB | a
 A → aA | a
 B → bB | b</pre></div>
-      <div class="hc"><div class="hn">// 02</div><h3>Set Input String</h3><p>Enter the string you want to check. Use <code>ε</code> for empty string productions. Characters are tokenized as you type.</p></div>
+      <div class="hc"><div class="hn">// 02</div><h3>Set Input String</h3><p>Enter the string you want to check. Use <code>e</code> for empty string productions. Characters are tokenized as you type.</p></div>
       <div class="hc"><div class="hn">// 03</div><h3>Choose Derivation Mode</h3><p><strong>L-Most:</strong> Always expands the leftmost non-terminal first.</p><p><strong>R-Most:</strong> Always expands the rightmost non-terminal.</p><p><strong>Both:</strong> Shows both derivation types side by side.</p></div>
       <div class="hc"><div class="hn">// 04</div><h3>Read the Output</h3><p><strong>Derivation Steps:</strong> Each step card shows the sentential form with the expanded symbol highlighted.</p><p><strong>Parse Tree:</strong> Zoomable SVG, exportable to file.</p><p><strong>Live Animation:</strong> Step-by-step playback with accept effect.</p></div>
     </div>
   </div>
 </div>
 
-<!-- ABOUT PAGE -->
 <div id="pg-about" class="pg">
   <div class="pgw">
     <h2 class="pgt"><em>About</em> Grammarviz</h2>
@@ -754,7 +747,7 @@ function showErr(msg){var b=document.getElementById('errBox');if(!msg){b.style.d
 function updateTokens(){
   var v=document.getElementById('inputString').value.trim();
   var b=document.getElementById('tokBox');
-  if(!v){b.innerHTML='<span style="font-size:.65rem;color:var(--ink4);font-family:var(--mono)">ε (empty string)</span>';return;}
+  if(!v){b.innerHTML='<span style="font-size:.65rem;color:var(--ink4);font-family:var(--mono)">e (empty string)</span>';return;}
   b.innerHTML=v.split('').map(function(c){return'<span class="tk">'+esc(c)+'</span>';}).join('');
 }
 function showPage(id){
@@ -791,8 +784,8 @@ function zoomT(factor){
 var PRESETS={
   anbn:{start:'S',rules:'S → a S b | a b',input:'aaabbb'},
   arith:{start:'E',rules:'E → E + T | T\nT → T * F | F\nF → ( E ) | id',input:'id + id * id'},
-  palin:{start:'S',rules:'S → a S a | b S b | a | b | ε',input:'abba'},
-  paren:{start:'S',rules:'S → ( S ) | S S | ε',input:'(())'}
+  palin:{start:'S',rules:'S → a S a | b S b | a | b | e',input:'abba'},
+  paren:{start:'S',rules:'S → ( S ) | S S | e',input:'(())'}
 };
 function loadPreset(k){
   var p=PRESETS[k];if(!p)return;
@@ -803,7 +796,7 @@ function loadPreset(k){
 }
 
 // ═══════════════════════════════════════════════════
-// CFG ENGINE (identical logic)
+// CFG ENGINE
 // ═══════════════════════════════════════════════════
 function parseGrammar(txt,start){
   var grammar={},allNT=new Set(),allT=new Set();
@@ -816,15 +809,15 @@ function parseGrammar(txt,start){
     allNT.add(lhs);grammar[lhs]=grammar[lhs]||[];
     rhs.split('|').forEach(function(alt){
       alt=alt.trim();if(alt==='')return;
-      if(alt==='ε'||alt==='eps'||alt==='epsilon'){grammar[lhs].push(['ε']);return;}
+      if(alt==='e'||alt==='eps'||alt==='epsilon'){grammar[lhs].push(['e']);return;}
       var syms=alt.indexOf(' ')>=0?alt.split(/\s+/).filter(Boolean):alt.split('');
       grammar[lhs].push(syms);
     });
   });
-  Object.values(grammar).forEach(function(prods){prods.forEach(function(p){p.forEach(function(s){if(s!=='ε'&&!allNT.has(s))allT.add(s);});});});
+  Object.values(grammar).forEach(function(prods){prods.forEach(function(p){p.forEach(function(s){if(s!=='e'&&!allNT.has(s))allT.add(s);});});});
   return{grammar:grammar,allNT:allNT,allT:allT};
 }
-function fstr(form){return form.filter(function(s){return s!=='ε';}).join('');}
+function fstr(form){return form.filter(function(s){return s!=='e';}).join('');}
 function deriveLeft(grammar,allNT,start,target,maxSteps){
   var queue=[{form:[start],path:[[start]]}],visited=new Set();
   while(queue.length>0){
@@ -870,7 +863,7 @@ function analyzeGrammar(grammar,allNT,allT,start){
   var ntArr=[...allNT],tArr=[...allT],prodCount=0,hasUnit=false,hasEps=false,isCNF=true;
   Object.values(grammar).forEach(function(prods){prods.forEach(function(p){
     prodCount++;
-    if(p[0]==='ε'){hasEps=true;isCNF=false;}
+    if(p[0]==='e'){hasEps=true;isCNF=false;}
     else if(p.length===1&&allNT.has(p[0])){hasUnit=true;isCNF=false;}
     else if(p.length===2&&allNT.has(p[0])&&allNT.has(p[1])){}
     else if(p.length===1&&!allNT.has(p[0])){}
@@ -896,7 +889,7 @@ function renderSVG(root,allNT){
   var s='<svg class="tree" xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" data-w="'+W+'" data-h="'+H+'" style="font-family:\'IBM Plex Mono\',monospace;overflow:visible;background:'+bg+'"><defs><filter id="ng"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-color="rgba(0,0,0,0.15)"/></filter></defs><g>';
   edges.forEach(function(e){s+='<line class="eg" x1="'+e.x1.toFixed(1)+'" y1="'+e.y1.toFixed(1)+'" x2="'+e.x2.toFixed(1)+'" y2="'+e.y2.toFixed(1)+'"/>';});
   nodes.forEach(function(n){
-    var iT=n.sym==='ε'||!allNT.has(n.sym);
+    var iT=n.sym==='e'||!allNT.has(n.sym);
     s+='<g transform="translate('+n.x.toFixed(1)+','+n.y.toFixed(1)+')" style="filter:url(#ng)">'
       +'<rect class="'+(iT?'tme':'nte')+'" x="-'+(NR)+'" y="-'+(NR)+'" width="'+(NR*2)+'" height="'+(NR*2)+'" rx="0"/>'
       +'<text class="'+(iT?'tml':'ntl')+'" x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="12" font-family="IBM Plex Mono,monospace">'+esc(n.sym)+'</text></g>';
@@ -918,14 +911,14 @@ function renderSteps(steps,allNT,label){
     for(var j=0;j<step.length;j++){
       var sym=esc(step[j]);
       if(j===hlIdx)str+='<span class="hl">'+sym+'</span>';
-      else if(!allNT.has(step[j])&&step[j]!=='ε')str+='<span class="tm">'+sym+'</span>';
+      else if(!allNT.has(step[j])&&step[j]!=='e')str+='<span class="tm">'+sym+'</span>';
       else str+=sym;
     }
     var rl='';
     if(!isF&&i>0){var pf=steps[i-1],pi=pf.findIndex(function(s){return allNT.has(s);});if(pi>=0){var lhs=pf[pi],prod=step.slice(pi,pi+(step.length-pf.length+1)).join(' ');rl='<div class="sr2">// applied: '+esc(lhs)+' → '+esc(prod)+'</div>';}}
     html+='<div class="'+cls+'" style="animation-delay:'+(i*.03)+'s">'
       +'<span class="snum">'+(isF?'S₀':'S'+i)+'</span>'
-      +'<div class="sb2"><div class="ss">'+(str||'ε')+'</div>'+rl+'</div>'
+      +'<div class="sb2"><div class="ss">'+(str||'e')+'</div>'+rl+'</div>'
       +'<span class="sa2">'+(isF?'// init':isL?'// accept':'// ⇒')+'</span></div>';
   }
   return html;
@@ -950,7 +943,7 @@ function renderInfo(grammar,analysis,start,derived,ll,rl2){
     +'</div>';
   if(a.hasUnit||a.hasEps||a.unreachable.length>0){
     html+='<div class="icd"><div class="ict">Warnings</div><div style="padding:.5rem .75rem;display:flex;flex-direction:column;gap:.35rem">'
-      +(a.hasEps?'<div style="font-size:.75rem;color:var(--amber);font-family:var(--mono);border:1px solid var(--amber);padding:.4rem .6rem;background:rgba(139,94,0,.05)">// ε-productions present</div>':'')
+      +(a.hasEps?'<div style="font-size:.75rem;color:var(--amber);font-family:var(--mono);border:1px solid var(--amber);padding:.4rem .6rem;background:rgba(139,94,0,.05)">// e-productions present</div>':'')
       +(a.hasUnit?'<div style="font-size:.75rem;color:var(--amber);font-family:var(--mono);border:1px solid var(--amber);padding:.4rem .6rem;background:rgba(139,94,0,.05)">// unit productions present</div>':'')
       +(a.unreachable.length>0?'<div style="font-size:.75rem;color:var(--err);font-family:var(--mono);border:1px solid var(--err);padding:.4rem .6rem;background:rgba(192,57,43,.05)">// unreachable: '+a.unreachable.map(esc).join(', ')+'</div>':'')
       +'</div></div>';
@@ -1044,7 +1037,7 @@ function _run(start,rules,input,maxS){
   ban.style.display='flex';
   var sc=primary?primary.length-1:0;
   ban.innerHTML='<span class="bico">'+(derived?'✓':'✗')+'</span>'
-    +'<span class="btxt">String <strong>"'+esc(input||'ε')+'"</strong> '
+    +'<span class="btxt">String <strong>"'+esc(input||'e')+'"</strong> '
     +(derived?'accepted — derivable from the grammar':'rejected — not in the language')+'</span>'
     +(derived?'<span class="bst">'+sc+' steps</span>':'');
 
@@ -1053,7 +1046,7 @@ function _run(start,rules,input,maxS){
     if(leftSteps)dhtml+=renderSteps(leftSteps,allNT,'// Leftmost Derivation');
     if(rightSteps)dhtml+=renderSteps(rightSteps,allNT,'// Rightmost Derivation');
   }else{
-    dhtml='<div style="color:var(--ink3);font-size:.78rem;padding:.9rem;border:1.5px solid var(--rule);line-height:1.7;font-family:var(--mono)">// Could not derive <strong>"'+esc(input||'ε')+'"</strong> within <strong>'+maxS+'</strong> steps.<br>// Increase Max Steps or verify your grammar rules.</div>';
+    dhtml='<div style="color:var(--ink3);font-size:.78rem;padding:.9rem;border:1.5px solid var(--rule);line-height:1.7;font-family:var(--mono)">// Could not derive <strong>"'+esc(input||'e')+'"</strong> within <strong>'+maxS+'</strong> steps.<br>// Increase Max Steps or verify your grammar rules.</div>';
   }
   document.getElementById('derivOut').innerHTML=dhtml;
 
